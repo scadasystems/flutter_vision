@@ -3,20 +3,16 @@ package com.vladih.computer_vision.flutter_vision;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 
 import androidx.annotation.NonNull;
 
-import com.vladih.computer_vision.flutter_vision.models.Tesseract;
 import com.vladih.computer_vision.flutter_vision.models.Yolo;
-import com.vladih.computer_vision.flutter_vision.models.Yolov8;
 import com.vladih.computer_vision.flutter_vision.models.Yolov5;
+import com.vladih.computer_vision.flutter_vision.models.Yolov8;
 import com.vladih.computer_vision.flutter_vision.models.Yolov8Seg;
 import com.vladih.computer_vision.flutter_vision.utils.utils;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.Mat;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -41,12 +37,8 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
     private Context context;
     private FlutterAssets assets;
     private Yolo yolo_model;
-    private Tesseract tesseract_model;
-
     private ExecutorService executor;
-
     private boolean isDetecting = false;
-
     private static ArrayList<Map<String, Object>> empty = new ArrayList<>();
 
     @Override
@@ -61,7 +53,6 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             this.methodChannel.setMethodCallHandler(null);
             this.methodChannel = null;
             this.assets = null;
-            close_tesseract();
             close_yolo();
             this.executor.shutdownNow();
         } catch (Exception e) {
@@ -107,17 +98,6 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             yolo_on_image((Map) call.arguments, result);
         } else if (call.method.equals("closeYoloModel")) {
             close_yolo_model(result);
-        } else if (call.method.equals("loadTesseractModel")) {
-            try {
-                load_tesseract_model((Map) call.arguments);
-                result.success("ok");
-            } catch (Exception e) {
-                result.error("100", "Error on load Tesseract model", e);
-            }
-        } else if (call.method.equals("tesseractOnImage")) {
-            tesseract_on_image((Map) call.arguments, result);
-        } else if (call.method.equals("closeTesseractModel")) {
-            close_tesseract_model(result);
         } else {
             result.notImplemented();
         }
@@ -125,7 +105,6 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
 
     private void load_ocr_model(Map<String, Object> args) throws Exception {
         load_yolo_model(args);
-        load_tesseract_model(args);
     }
 
     private void ocr_on_frame(Map<String, Object> args, Result result) {
@@ -142,15 +121,10 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             ByteBuffer byteBuffer = utils.feedInputTensor(bitmap, shape[1], shape[2], image_width, image_height, 0, 255);
 
             List<Map<String, Object>> yolo_results = yolo_model.detect_task(byteBuffer, image_height, image_width, iou_threshold, conf_threshold, class_threshold);
+
             for (Map<String, Object> yolo_result : yolo_results) {
                 float[] box = (float[]) yolo_result.get("box");
-                if (class_is_text.contains((int) box[5])) {
-                    Bitmap crop = utils.crop_bitmap(bitmap,
-                            box[0], box[1], box[2], box[3]);
-                    //utils.getScreenshotBmp(crop, "crop");
-                    Bitmap tmp = crop.copy(crop.getConfig(), crop.isMutable());
-                    yolo_result.put("text", tesseract_model.predict_text(tmp));
-                } else {
+                if (!class_is_text.contains((int) box[5])) {
                     yolo_result.put("text", "");
                 }
             }
@@ -162,7 +136,6 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
 
     private void close_ocr_model(Result result) {
         try {
-            close_tesseract();
             close_yolo();
             result.success("OCR model closed succesfully");
         } catch (Exception e) {
@@ -227,7 +200,6 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
 
     //https://www.baeldung.com/java-single-thread-executor-service
     class DetectionTask implements Runnable {
-        //    private static volatile DetectionTasks instance;
         private Yolo yolo;
         byte[] image;
 
@@ -244,6 +216,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
         public DetectionTask(Yolo yolo, Map<String, Object> args, String typing, Result result) {
             this.typing = typing;
             this.yolo = yolo;
+
             if (typing == "img") {
                 this.image = (byte[]) args.get("bytesList");
             } else {
@@ -256,6 +229,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
             this.class_threshold = (float) (double) (args.get("class_threshold"));
             this.result = result;
         }
+
         @Override
         public void run() {
             try {
@@ -316,69 +290,7 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
         }
     }
 
-    private void load_tesseract_model(Map<String, Object> args) throws Exception {
-        final String tess_data = args.get("tess_data").toString();
-        final Map<String, String> arg = (Map<String, String>) args.get("arg");
-        final String language = args.get("language").toString();
-        tesseract_model = new Tesseract(tess_data, arg, language);
-        tesseract_model.initialize_model();
-    }
-
-    class PredictionTask implements Runnable {
-        private Tesseract tesseract;
-        private Bitmap bitmap;
-        private Result result;
-
-        public PredictionTask(Tesseract tesseract, Map<String, Object> args, Result result) {
-            byte[] image = (byte[]) args.get("bytesList");
-            this.tesseract = tesseract;
-            this.bitmap = BitmapFactory.decodeByteArray(image, 0, image.length);
-            this.result = result;
-        }
-
-        @Override
-        public void run() {
-            try {
-                Mat mat = utils.rgbBitmapToMatGray(bitmap);
-                double angle = utils.computeSkewAngle(mat.clone());
-                mat = utils.deskew(mat, angle);
-                mat = utils.filterTextFromImage(mat);
-                bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
-                Utils.matToBitmap(mat, bitmap);
-//        utils.getScreenshotBmp(bitmap,"TESSEREACT");
-                result.success(tesseract.predict_text(bitmap));
-            } catch (Exception e) {
-                result.error("100", "Prediction text Error", e);
-            }
-        }
-    }
-
-    private void tesseract_on_image(Map<String, Object> args, Result result) {
-        try {
-            PredictionTask predictionTask = new PredictionTask(tesseract_model, args, result);
-            executor.submit(predictionTask);
-        } catch (Exception e) {
-            result.error("100", "Prediction Error", e);
-        }
-    }
-
-    private void close_tesseract_model(Result result) {
-        try {
-            close_tesseract();
-            result.success("Tesseract model closed succesfully");
-        } catch (Exception e) {
-            result.error("100", "close_tesseract_model error", e);
-        }
-    }
-
-    private void close_tesseract(){
-        if (tesseract_model != null) {
-            tesseract_model.close();
-            tesseract_model = null;
-        }
-    }
-
-    private void close_yolo(){
+    private void close_yolo() {
         if (yolo_model != null) {
             yolo_model.close();
             yolo_model = null;

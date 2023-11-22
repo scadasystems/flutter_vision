@@ -2,8 +2,6 @@ package com.vladih.computer_vision.flutter_vision.utils;
 
 import android.graphics.Bitmap;
 
-import com.googlecode.leptonica.android.Scale;
-
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.support.common.ops.NormalizeOp;
 import org.tensorflow.lite.support.image.ImageProcessor;
@@ -18,7 +16,8 @@ public class FeedInputTensorHelper {
     private ImageProcessor upSizeImageProcessor;
 
     private int previus_width = 0;
-    private  int previus_height = 0;
+    private int previus_height = 0;
+
     private FeedInputTensorHelper(int width, int height, float mean, float std) {
         previus_width = width;
         previus_height = height;
@@ -42,10 +41,10 @@ public class FeedInputTensorHelper {
 
     public static synchronized FeedInputTensorHelper getInstance(int width, int height, float mean, float std) {
         if (instance == null) {
-            instance = new FeedInputTensorHelper(width, height,mean, std);
-        }else{
-            if (instance.previus_width!=width || instance.previus_height!=height){
-                instance = new FeedInputTensorHelper(width, height,mean, std);
+            instance = new FeedInputTensorHelper(width, height, mean, std);
+        } else {
+            if (instance.previus_width != width || instance.previus_height != height) {
+                instance = new FeedInputTensorHelper(width, height, mean, std);
             }
         }
         return instance;
@@ -54,18 +53,18 @@ public class FeedInputTensorHelper {
     public static TensorImage getBytebufferFromBitmap(Bitmap bitmap,
                                                       int input_width,
                                                       int input_height, float mean, float std, String size_option) throws Exception {
-        try{
+        try {
             //https://www.tensorflow.org/lite/inference_with_metadata/lite_support
             FeedInputTensorHelper feedInputTensorHelper = getInstance(input_width, input_height, mean, std);
             feedInputTensorHelper.tensorImage.load(bitmap);
-            if (size_option=="downsize"){
+            if (size_option == "downsize") {
                 return feedInputTensorHelper.downSizeImageProcessor.process(feedInputTensorHelper.tensorImage);
             }
-            if (size_option=="upsize"){
+            if (size_option == "upsize") {
                 return feedInputTensorHelper.upSizeImageProcessor.process(feedInputTensorHelper.tensorImage);
             }
             throw new Exception("internal error, size_option no supported");
-        }catch (Exception e){
+        } catch (Exception e) {
             throw e;
         }
     }
