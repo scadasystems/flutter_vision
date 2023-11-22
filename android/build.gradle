@@ -52,7 +52,6 @@ android {
     }
 }
 dependencies{
-    //implementation (files('libs/tesseract4android-release.aar'))
     implementation 'com.github.vladiH:opencv-android:v1.0.0'
     implementation 'org.tensorflow:tensorflow-lite:2.10.0'
     implementation 'org.tensorflow:tensorflow-lite-api:2.10.0'
