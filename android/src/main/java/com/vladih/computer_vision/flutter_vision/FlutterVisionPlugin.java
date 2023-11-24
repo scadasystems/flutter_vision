@@ -240,10 +240,14 @@ public class FlutterVisionPlugin implements FlutterPlugin, MethodCallHandler {
                     //rotate image, because android take a photo rotating 90 degrees
                     bitmap = utils.feedInputToBitmap(context, frame, image_height, image_width, 90);
                 }
+
                 int[] shape = yolo.getInputTensor().shape();
+
                 int src_width = bitmap.getWidth();
                 int src_height = bitmap.getHeight();
+
                 ByteBuffer byteBuffer = utils.feedInputTensor(bitmap, shape[1], shape[2], src_width, src_height, 0, 255);
+
                 List<Map<String, Object>> detections = yolo.detect_task(byteBuffer, src_height, src_width, iou_threshold, conf_threshold, class_threshold);
                 isDetecting = false;
                 result.success(detections);

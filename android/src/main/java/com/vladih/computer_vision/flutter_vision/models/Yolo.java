@@ -8,10 +8,6 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.util.Log;
 
-import com.vladih.computer_vision.flutter_vision.utils.FeedInputTensorHelper;
-
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.Tensor;
 import org.tensorflow.lite.gpu.CompatibilityList;
@@ -33,9 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
-
-import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.embedding.engine.plugins.FlutterPlugin;
 
 public class Yolo {
     protected float[][][] output;
@@ -102,9 +95,11 @@ public class Yolo {
             try {
                 // Check if GPU support is available
                 CompatibilityList compatibilityList = new CompatibilityList();
+
                 if (use_gpu && compatibilityList.isDelegateSupportedOnThisDevice()) {
                     GpuDelegateFactory.Options delegateOptions = compatibilityList.getBestOptionsForThisDevice();
                     GpuDelegate gpuDelegate = new GpuDelegate(delegateOptions.setQuantizedModelsAllowed(this.quantization));
+
                     interpreterOptions.addDelegate(gpuDelegate);
                 } else {
                     interpreterOptions.setNumThreads(num_threads);
@@ -120,7 +115,7 @@ public class Yolo {
             this.interpreter.allocateTensors();
             this.labels = load_labels(asset_manager, label_path);
             int[] shape = interpreter.getOutputTensor(0).shape();//3dimension
-            this.output = (float [][][]) Array.newInstance(float.class, shape);
+            this.output = (float[][][]) Array.newInstance(float.class, shape);
         } catch (Exception e) {
             throw e;
         } finally {
@@ -163,10 +158,13 @@ public class Yolo {
                                                  float conf_threshold, float class_threshold) throws Exception {
         try {
             int[] input_shape = this.interpreter.getInputTensor(0).shape();
+
             this.interpreter.run(byteBuffer, this.output);
-            List<float[]> boxes = filter_box(this.output, iou_threshold, conf_threshold,
-                    class_threshold, input_shape[1], input_shape[2]);
+
+            List<float[]> boxes = filter_box(this.output, iou_threshold, conf_threshold, class_threshold, input_shape[1], input_shape[2]);
+
             boxes = restore_size(boxes, input_shape[1], input_shape[2], source_width, source_height);
+
             return out(boxes, this.labels);
         } catch (Exception e) {
             throw e;
@@ -206,7 +204,7 @@ public class Yolo {
                         max_index = j;
                     }
                 }
-                if (max > class_threshold){
+                if (max > class_threshold) {
                     float[] tmp = new float[6];
                     tmp[0] = x1;
                     tmp[1] = y1;
@@ -293,6 +291,7 @@ public class Yolo {
             throw new RuntimeException(e.getMessage());
         }
     }
+
     protected List<Map<String, Object>> out(List<float[]> yolo_result, Vector<String> labels) {
         try {
             List<Map<String, Object>> result = new ArrayList<>();

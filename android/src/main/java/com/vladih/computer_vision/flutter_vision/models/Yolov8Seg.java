@@ -3,40 +3,24 @@ package com.vladih.computer_vision.flutter_vision.models;
 import static java.lang.Math.min;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.util.Log;
 
 import com.vladih.computer_vision.flutter_vision.utils.utils;
 
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 import org.opencv.imgproc.Imgproc;
-import org.tensorflow.lite.Interpreter;
-import org.tensorflow.lite.gpu.CompatibilityList;
-import org.tensorflow.lite.gpu.GpuDelegate;
-import org.tensorflow.lite.schema.Buffer;
-import org.tensorflow.lite.schema.ReshapeOptions;
-import org.tensorflow.lite.support.image.ImageProcessor;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.Vector;
 
 //https://dev.to/andreygermanov/how-to-implement-instance-segmentation-using-yolov8-neural-network-3if9
@@ -176,10 +160,10 @@ public class Yolov8Seg extends Yolo {
     }
 
     public static List<Map<String, Double>> get_polygons_from_bitmap(Bitmap mask,
-                                                                           int mask_height,
-                                                                           int mask_width,
-                                                                           int source_height,
-                                                                           int source_width) {
+                                                                     int mask_height,
+                                                                     int mask_width,
+                                                                     int source_height,
+                                                                     int source_width) {
         Mat maskMat = utils.rgbBitmapToMatGray(mask); // Convert Bitmap to Mat
         List<MatOfPoint> contours = new ArrayList<>();
         Imgproc.findContours(maskMat, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -206,13 +190,13 @@ public class Yolov8Seg extends Yolo {
 //        List<List<Map<String, Double>>> converted_polygons = new ArrayList<>();
 
 //        for (List<Point> polygon : polygons) {
-            List<Map<String, Double>> convertedPolygon = new ArrayList<>();
-            for (Point point : polygon) {
-                Map<String, Double> pointMap = new HashMap<>();
-                pointMap.put("x", point.x * source_width / mask_width);
-                pointMap.put("y", point.y * source_height / mask_height);
-                convertedPolygon.add(pointMap);
-            }
+        List<Map<String, Double>> convertedPolygon = new ArrayList<>();
+        for (Point point : polygon) {
+            Map<String, Double> pointMap = new HashMap<>();
+            pointMap.put("x", point.x * source_width / mask_width);
+            pointMap.put("y", point.y * source_height / mask_height);
+            convertedPolygon.add(pointMap);
+        }
 //            converted_polygons.add(convertedPolygon);
 //        }
 //        return converted_polygons;
